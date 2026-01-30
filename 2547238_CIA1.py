@@ -46,15 +46,29 @@ st.header("State-wise Silver Sales Analysis")
 st.subheader("India State-wise Silver Purchases Map")
 india_states = gpd.read_file('ne_10m_admin_1_states_provinces.zip')
 
-india_states['Silver_Purchased_kg'] = india_states['name'].map(
-    lambda x: state_df[state_df['State'] == x]['Silver_Purchased_kg'].values[0] 
-    if len(state_df[state_df['State'] == x]) > 0 else 0
-)
+# Keep only states belonging to India (Natural Earth uses the 'admin' column for country)
+if 'admin' in india_states.columns:
+    india_states = india_states[india_states['admin'].str.lower() == 'india']
+
+# Helper to match state names case-insensitively
+def _get_purchase(name):
+    if pd.isna(name):
+        return 0.0
+    match = state_df[state_df['State'].str.lower() == str(name).lower()]
+    return float(match['Silver_Purchased_kg'].values[0]) if len(match) > 0 else 0.0
+
+india_states['Silver_Purchased_kg'] = india_states['name'].apply(_get_purchase)
 
 fig, ax = plt.subplots(figsize=(14, 10))
-india_states.plot(column='Silver_Purchased_kg', ax=ax, legend=True, 
+india_states.plot(column='Silver_Purchased_kg', ax=ax, legend=True,
                   cmap='Greens', edgecolor='black', linewidth=0.5)
 ax.set_title('State-wise Silver Purchases (kg)', fontsize=14, fontweight='bold')
+
+# Zoom to the India bounds so the full world is not shown
+minx, miny, maxx, maxy = india_states.total_bounds
+ax.set_xlim(minx, maxx)
+ax.set_ylim(miny, maxy)
+
 ax.axis('off')
 st.pyplot(fig)
 
